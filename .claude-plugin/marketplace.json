@@ -1,0 +1,17 @@
+{
+  "name": "alfonso-skills",
+  "owner": {
+    "name": "Alfonso Campodonico",
+    "url": "https://github.com/AlfonsoCampodonico"
+  },
+  "metadata": {
+    "description": "Claude Code skills shared with the team."
+  },
+  "plugins": [
+    {
+      "name": "pr-walkthrough",
+      "source": "./plugins/pr-walkthrough",
+      "description": "Read-only PR review: a workflow diagram of how the change moves through the code (ASCII, or a rendered PNG on request) plus ranked points to consider."
+    }
+  ]
+}
