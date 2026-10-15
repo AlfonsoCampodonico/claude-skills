@@ -12,6 +12,11 @@
       "name": "pr-walkthrough",
       "source": "./plugins/pr-walkthrough",
       "description": "Read-only PR review: a workflow diagram of how the change moves through the code (ASCII, or a rendered PNG on request) plus ranked points to consider."
+    },
+    {
+      "name": "disk-cleanup",
+      "source": "./plugins/disk-cleanup",
+      "description": "Reclaim disk space safely: finished Claude job scratch, merged git worktrees, Rust target/ dirs and cargo caches, old Claude transcripts. Survey first, delete only approved buckets."
     }
   ]
 }

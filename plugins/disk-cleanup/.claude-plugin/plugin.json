@@ -1,0 +1,11 @@
+{
+  "name": "disk-cleanup",
+  "version": "0.1.0",
+  "description": "Reclaim disk space on a dev Mac: finished Claude job scratch, merged git worktrees, Rust target/ dirs and cargo caches, old Claude transcripts. Surveys first, deletes only what you approve.",
+  "author": {
+    "name": "Alfonso Campodonico",
+    "url": "https://github.com/AlfonsoCampodonico"
+  },
+  "repository": "https://github.com/AlfonsoCampodonico/claude-skills",
+  "keywords": ["disk", "cleanup", "worktrees", "rust", "cargo"]
+}
