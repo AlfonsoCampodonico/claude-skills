@@ -9,11 +9,14 @@ A read-only review built for reading a PR comfortably in the terminal, even
 a big one. It has three parts:
 
 - a **PR card**;
-- a **workflow tree** whose nodes carry markers (①②③) that map to clickable
-  `file:line` references;
+- a **workflow tree**, drawn twice: as box-drawn text that reads in any
+  terminal, and as a PNG rendered with pele that Claude Code shows inline;
 - **numbered findings**.
 
-The user steers by number: `fix 3`, `explain ②`, `comment 3`, `next`.
+Code is referenced by name, linked to the exact line at the PR head:
+[`restartProcess`](https://github.com/o/r/blob/279103b…/internal/controller/controller.go#L541).
+The user steers by finding number or symbol name: `fix 3`,
+`explain restartProcess`, `comment 3`, `next`.
 
 Read-only until the user says otherwise: no fixes, no posted comments, no
 checkout of the user's working copy.
@@ -35,6 +38,11 @@ git show review/pr-<n>:path/to/file                 # surrounding code
 - **Take every line number from the PR head**, using `git grep -n` on
   `review/pr-<n>`, never the base branch or the local checkout. The card
   states the head SHA they refer to.
+- **Build every code link from the full head SHA**, so it keeps pointing at
+  the reviewed line after new pushes:
+  `https://github.com/<o>/<r>/blob/<headSha>/<path>#L<line>` (a range is
+  `#L<start>-L<end>`). For a branch that isn't pushed, use a plain
+  `path:line` instead of a link.
 - If `git fetch` is blocked, download the PR head instead. You still get
   exact line numbers and a tree the tests can run in, and no refs are
   touched:
@@ -82,7 +90,7 @@ git diff <lastReviewedSha> review/pr-<n>                            # when there
 
 Output: the card (with `reviewed abc123 → now def456`), a table of your
 earlier findings and threads, each marked **addressed**, **partly**, or
-**not addressed**, with the `file:line` that shows it. Then new findings
+**not addressed**, with a code link that shows it. Then new findings
 only, numbered on from the previous review. Redraw the tree only if the flow
 changed.
 
@@ -91,10 +99,10 @@ changed.
 | PR size | Replies |
 |---|---|
 | Small: ≤ 10 files and ≤ 400 changed lines | Everything in one reply |
-| Big: anything larger | **Reply 1:** card, a one-paragraph summary, an **overview tree** with one branch per subsystem, the list of sections, the files table, and **only** the "Worth discussing before merge" findings. Hold nits, docs and "done well" for their sections. **Each later reply:** one section, with its own tree, legend and findings (all groups), sent when the user says `next` or names the section |
+| Big: anything larger | **Reply 1:** card, a one-paragraph summary, an **overview tree** with one branch per subsystem, the list of sections, the files table, and **only** the "Worth discussing before merge" findings. Hold nits, docs and "done well" for their sections. **Each later reply:** one section, with its own tree, PNG, code links and findings (all groups), sent when the user says `next` or names the section |
 
-Markers and finding numbers **run on across sections**, never restarting, so
-`fix 7` is unambiguous for the whole review.
+Finding numbers **run on across sections**, never restarting, so `fix 7` is
+unambiguous for the whole review.
 
 ## 3. Output: these parts, in this order
 
@@ -108,13 +116,20 @@ head 279103b · go vet ✓ · go test -race 75/75 ✓
 
 **2. What and why:** one paragraph in your own words.
 
-**3. Workflow tree**, in the style of section 4. Directly under the code
-block, add the **legend**. It goes outside the code block, so the
-references are clickable:
+**3. Workflow tree**, in the style of section 4, then the **PNG** of the
+same flow (section 6). Directly under them, the **code links**: one per
+node that a finding or the files table mentions, using the node's name as
+the link text. They go outside the code block, so they're clickable in the
+terminal and in Claude Code:
 
-① `main.go:105` · ② `internal/stacks/shutdown.go:18` ·
-③ `internal/stacks/shutdown.go:96` · ④ `internal/controller/controller.go:541` ·
-⑤ `internal/controller/controller.go:373` · ⑥ `main.go:135`
+[`main` metrics start](https://github.com/o/r/blob/279103b…/main.go#L105) ·
+[`StartProcess`](https://github.com/o/r/blob/279103b…/internal/stacks/shutdown.go#L18) ·
+[`ShutdownProcess`](https://github.com/o/r/blob/279103b…/internal/stacks/shutdown.go#L96) ·
+[`restartProcess`](https://github.com/o/r/blob/279103b…/internal/controller/controller.go#L541) ·
+[`RetriesExhausted`](https://github.com/o/r/blob/279103b…/internal/controller/controller.go#L373) ·
+[`metricsCancel`](https://github.com/o/r/blob/279103b…/main.go#L135)
+
+(`279103b…` stands for the full 40-character head SHA.)
 
 Then give 1–2 lines of concrete observable effect, such as a test assertion
 or an output line.
@@ -124,24 +139,25 @@ the logic first, then their tests, then wiring, and last what can be skimmed
 (generated code, lockfiles, fixtures, renames). The `read` column says how much
 attention each one needs:
 
-| read | file | ± | role | nodes |
+| read | file | ± | role | in the tree |
 |---|---|---|---|---|
-| 1 · careful | `internal/stacks/shutdown.go` | +10 | start/exit hooks | ② ③ |
-| 2 · careful | `internal/metrics/metrics.go` | +267 | registry + text exposition | — |
+| 1 · careful | [`internal/stacks/shutdown.go`](https://github.com/o/r/blob/279103b…/internal/stacks/shutdown.go) | +10 | start/exit hooks | [`StartProcess`](…#L18), [`ShutdownProcess`](…#L96) |
+| 2 · careful | [`internal/metrics/metrics.go`](https://github.com/o/r/blob/279103b…/internal/metrics/metrics.go) | +267 | registry + text exposition | — |
 | skim | `go.sum` | +40 | deps | — |
 
 **4b. Claims check**, only when the description makes claims worth checking:
-one line each, `✓ "counts every exit" — shutdown.go:96` or
-`✗ "covers oneshot" — oneshot never reaches ③`. A ✗ is also a finding.
+one line each, ✓ "counts every exit" — [`ShutdownProcess`](…/shutdown.go#L96)
+or ✗ "covers oneshot" — oneshot never reaches [`ShutdownProcess`](…/shutdown.go#L96).
+A ✗ is also a finding.
 
 **5. Findings**, numbered 1…n, grouped under these headings in this order:
 **Worth discussing before merge**, **Correctness nits**, **Docs & process**,
 **Done well**. Each finding has this shape:
 
-> **4. Restarts counted before the STOP check** · `internal/controller/controller.go:541` · at ④
+> **4. Restarts counted before the STOP check** · [`restartProcess`](https://github.com/o/r/blob/279103b…/internal/controller/controller.go#L541)
 > `ProcessRestarted` runs before the goroutine re-checks STOP, so a restart cancelled by shutdown is counted but never launched.
 
-The first line is the claim, the location and the marker. The second line is
+The first line is the claim and a link to the code, named after the symbol. The second line is
 mechanism → consequence. Drop any finding you can't tie to code you read.
 
 **6. Verification:** what you ran and the result, stated plainly.
@@ -153,7 +169,7 @@ mechanism → consequence. Drop any finding you can't tie to code you read.
 **8. Action footer**, always the last line:
 
 ```
-→ fix 1,4 · explain ② · comment 1,4 · next: §2 controller hooks · rereview · deep · image
+→ fix 1,4 · explain restartProcess · comment 1,4 · next: §2 controller hooks · rereview · deep
 ```
 
 ## 4. Workflow tree style
@@ -161,26 +177,26 @@ mechanism → consequence. Drop any finding you can't tie to code you read.
 ````
 main.go
  ├─ log proxy start (existing)
- ├─ ① if stack.EnableMetrics:
+ ├─ if stack.EnableMetrics:
  │     metrics.NewServer(listen).Start(ctx) ── bind fails → slog.Error, continue
  ├─ ctrl.Start() ───────────────────────────────────────────────────────────────────────────┐
  │                                                                                          │
  │   Process.Run (service only)                                                             │
- │    └─ ② ShutdownHandler.StartProcess ──► ProcessStarted            starts++ running++    │
+ │    └─ ShutdownHandler.StartProcess ──► ProcessStarted              starts++ running++    │
  │   cmd.Start / cmd.Wait                                                                   │
- │    └─ ③ ShutdownHandler.ShutdownProcess ──► ProcessExited          exits{code,phase}++   │
+ │    └─ ShutdownHandler.ShutdownProcess ──► ProcessExited            exits{code,phase}++   │
  │         (every exit, oneshot too, even if LogsDisabled)            last_exit_code/ts     │
  │                                                                    running-- (service)   │
  │   controller loop: proc not running                                                      │
- │    └─ ④ restartProcess ── IncrementAttempts ► ProcessRestarted     restarts++            │
+ │    └─ restartProcess ── IncrementAttempts ► ProcessRestarted       restarts++            │
  │          └─ retries exhausted → failedCh                                                 │
- │              └─ ⑤ main loop ──► RetriesExhausted                   exhausted++           │
+ │              └─ main loop ──► RetriesExhausted                     exhausted++           │
  │                  └─ transitionToStop ──► Stopping()                stopping=1            │
  │                     (exits after this get phase="stopping")                              │
  │   SIGTERM path ── transitionToStop ──► Stopping()                                        │
  ◄──────────────────────────────────────────────────────────────────────────────────────────┘
  ├─ reaper drain → cancel → ctrl.Done, reaper.Done, logproxy.Done
- └─ ⑥ metricsCancel() → <-metricsServer.Done   (endpoint stays up through drain)
+ └─ metricsCancel() → <-metricsServer.Done     (endpoint stays up through drain)
 ````
 
 The rules that make it read like that:
@@ -194,8 +210,9 @@ The rules that make it read like that:
   waits on gets a box. Start it with `───┐` on the opening row, keep `│` on
   the right edge, and close with `◄───┘` where control returns to the trunk.
 - **Side paths stay inline:** `── bind fails → slog.Error, continue`.
-- **Markers:** ①–⑳ (then `[21]`, `[22]`…). Put one before every node that the
-  legend, a finding or the files table refers to, and on no other node.
+- **Names, not markers:** label nodes with the real symbol
+  (`ShutdownHandler.StartProcess`), never ①②③ or other markers. Findings, the
+  files table and the code links refer to nodes by these same names.
 - **Alignment:** pad with spaces so the box edge and the effect column line up
   exactly. Keep the tree to 100 columns or less; if it would be wider, split
   it into sections. For a big tree, generate the padding with a short script
@@ -207,14 +224,13 @@ The rules that make it read like that:
 
 | User says | Do |
 |---|---|
-| `explain ②` | Show the code at that marker's `file:line` (about ±15 lines on the PR head), then 2–4 sentences on what it does and why it matters |
+| `explain <name>` or `explain 4` | Show the code for that symbol, or the one finding 4 links to (about ±15 lines on the PR head) with its link, then 2–4 sentences on what it does and why it matters |
 | `fix 1,4` | Leave read-only mode for just those findings. Follow the repo's branch and PR rules (a separate branch or PR, never the author's branch unless asked). Reference the finding numbers in the commit or PR |
-| `next` / `§2` | The next section: its tree, legend and findings, with numbering continued |
+| `next` / `§2` | The next section: its tree, PNG, code links and findings, with numbering continued |
 | `comment 1,4` | Draft each finding as a GitHub review comment in the user's voice (below). Show the drafts; post nothing |
 | `post 1,4` | Post the drafted comments as **one pending review** on the PR head, after the user confirms the exact text. Never approve or request changes unless they say so |
 | `rereview` | Section 1b |
 | `deep` | Run the `adversarial-review` skill (if available) on the findings' areas, then fold the surviving findings into the numbering |
-| `image` | Render the current tree as Mermaid → PNG (section 6) |
 
 ### Review comments in the user's voice
 
@@ -236,24 +252,43 @@ gh api repos/<o>/<r>/pulls/<n>/reviews -X POST --input "$TMP/review.json"
 # no "event" key → the review stays PENDING for the user to submit
 ```
 
-## 6. Image output (on request, or when a tree passes ~40 rows)
+## 6. PNG of the tree (every tree)
+
+Every tree also goes out as a PNG, rendered with
+[pele](https://pele.run) (Mermaid → SVG) and resvg (SVG → PNG). Both run in
+Node, with no browser. The script is `scripts/render-diagram.mjs` in this
+skill's directory:
 
 ```bash
-npx -y @mermaid-js/mermaid-cli@11.4.2 -i flow.mmd -o flow.png -b white -s 2
+node <skill dir>/scripts/render-diagram.mjs "$TMP/flow.mmd" "$TMP/flow"
+# → $TMP/flow.svg (nodes link to the code) and $TMP/flow.png
 ```
 
-- Write `flow.mmd` in `$TMP`. Put the **same markers** in the node labels
-  (`"② StartProcess"`) so the image and the legend agree.
+The first run installs pinned `pele` and `@resvg/resvg-js` into
+`~/.cache/pr-walkthrough`; later runs take well under a second.
+
+- Write `flow.mmd` as a Mermaid `flowchart TD` with the **same node names**
+  as the text tree, so the picture, the tree and the code links agree. No
+  markers.
+- Give every linked node a `click` line to the same URL as its code link:
+  `click sp href "https://github.com/<o>/<r>/blob/<headSha>/internal/stacks/shutdown.go#L18"`.
+  The SVG keeps these as real links.
 - Colour-code the nodes:
   `classDef new fill:#d4f5d4,stroke:#2e7d32` for code the PR adds,
   `classDef gap fill:#ffd9d9,stroke:#c62828` for findings and missed paths.
-- Read the PNG to check it's legible before you deliver it.
-- **Delivering it:**
-  - If `SendUserFile` is available, send it with `display: "render"`. If the
-    render failed, send the `.mmd` the same way.
-  - Otherwise, give the path, and run `open <path>` on macOS.
+  Put the gap's reason on a dotted edge: `rp -.->|"✗ counted before STOP"| pr`.
+- Read the PNG to check it's legible before you deliver it. A tree over ~25
+  nodes gets one PNG per section rather than one crowded image.
+- **Delivering it** so it renders in both places:
+  - Claude Code app or desktop: if `SendUserFile` is available, send the PNG
+    with `display: "render"`.
+  - Terminal: put a link to the file right under the text tree,
+    `[flow.png](file://<abs path>)`, which opens it from the terminal. On
+    macOS you can also offer `open <path>`.
+  - If the render fails, say so in one line and keep going; the text tree
+    already carries the flow.
 - If the user wants a page to share and the Artifact tool exists, build an
-  Artifact with an inline SVG instead. Load `artifact-diagramming` and
+  Artifact from the SVG instead. Load `artifact-diagramming` and
   `artifact-design` first.
 
 ## Common mistakes
@@ -261,9 +296,11 @@ npx -y @mermaid-js/mermaid-cli@11.4.2 -i flow.mmd -o flow.png -b white -s 2
 | Mistake | Fix |
 |---|---|
 | Line numbers from the base branch or the local checkout | `git grep -n` on `review/pr-<n>`, and put the head SHA in the card |
-| A marker in the tree with no legend entry, or the other way round | Check that every marker appears in both before sending |
-| `file:line` only inside the code block, where it isn't clickable | The legend and findings go outside the code block |
-| Numbering restarted in section 2 | Keep markers and findings running on across sections |
+| ①②③ markers, or a bare `file:line` | Name the symbol and link it: [`restartProcess`](…/controller.go#L541) |
+| A link to a branch name or the base branch | Links use the full head SHA, so they still point at the reviewed line after new pushes |
+| Links only inside the code block, where they aren't clickable | Code links and findings go outside the code block |
+| PNG node names that don't match the text tree | Same names in both; render from the same list of nodes |
+| Numbering restarted in section 2 | Keep finding numbers running on across sections |
 | A 40-file PR dumped in one reply | Size it (section 2): overview first, then one section per reply |
 | Every finding group in reply 1 of a big PR | Reply 1 gets only "Worth discussing before merge"; the rest goes to the sections |
 | "Tests not run, fetch blocked" | Use the tarball fallback and run them there |

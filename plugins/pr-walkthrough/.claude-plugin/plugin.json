@@ -1,11 +1,11 @@
 {
   "name": "pr-walkthrough",
-  "version": "0.3.0",
-  "description": "Read-only PR review: a workflow diagram of how the change moves through the code (ASCII, or a rendered PNG on request) plus ranked points to consider.",
+  "version": "0.4.0",
+  "description": "Read-only PR review: a workflow diagram of how the change moves through the code (box-drawn text plus a pele-rendered PNG), code linked by name at the PR head, plus ranked points to consider.",
   "author": {
     "name": "Alfonso Campodonico",
     "url": "https://github.com/AlfonsoCampodonico"
   },
   "repository": "https://github.com/AlfonsoCampodonico/claude-skills",
-  "keywords": ["code-review", "pull-request", "diagram", "mermaid"]
+  "keywords": ["code-review", "pull-request", "diagram", "mermaid", "pele"]
 }

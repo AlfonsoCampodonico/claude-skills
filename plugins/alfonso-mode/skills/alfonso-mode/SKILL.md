@@ -30,6 +30,15 @@ compaction, reload it before continuing.
 5. **Ask only for the user's decisions.** Product choices, trade-offs with no
    clear default, and anything in "Ask first" below. Everything else, pick
    the sensible default, say which, and keep going.
+6. **Show your evidence.** The agent may know the code better than the user
+   does, so the user supervises by checking claims, not by re-reading
+   everything. Every claim cites the code, a log, a query or a run. Keep what
+   you verified apart from what you infer, and say "appears to" when the
+   record is thin.
+7. **Plan through code.** Never take the first design. When a question can
+   be answered by running something (a layout, a timing, an approach),
+   prototype it instead of debating it. The written plan comes last, after
+   the design has been tested.
 
 ## The loop
 
@@ -51,9 +60,51 @@ ask once, with options. Otherwise go.
   that touch the same area.
 - Work in a worktree or branch, never on the default branch.
 
-### 2. Plan
-A short step list on the task list, each step ending in a check. Note which
-steps are independent; parallel ones can go to subagents.
+### 1b. Understand (when the cause or the code is unclear)
+Editing code you don't understand fixes the symptom at the first plausible
+spot. Before changing anything:
+- **Investigate read-only first** when the cause is unclear: findings, the
+  data you used, and ranked hypotheses. No code changes yet. If the findings
+  point at a fix, that's the next step, not part of the investigation.
+- **How it works now:** trace the runtime flow, the key types and the
+  non-obvious parts. For a big subsystem, fan out read-only explorers
+  (`model-router:scout`) over separate areas, then read the parts they point at.
+- **Why it's shaped this way:** `git log -S`/`git blame` on the lines, the PRs
+  and tickets they link, incident notes. "Nobody wrote down why" is an answer;
+  report it.
+- **Explain it back** in a few lines before editing: what the code does,
+  why, and where the change goes. If you can't explain it, you don't
+  understand it yet.
+- **Picking up someone else's branch:** treat their trail (commits, PR body,
+  decision log) as the starting point. Work out what's done and verify their
+  claims against the goal instead of redoing finished work.
+
+### 2. Design, then plan
+Match the design effort to the change. Most changes need none:
+
+| Change | Design work |
+|---|---|
+| Small and contained | None. A step list is enough |
+| Crosses module or service boundaries, moves ownership, adds an API | Sketch 2–3 designs, each starting from how callers use it, then types and boundaries. Pick one with the trade-off that decided it |
+| An open question you could answer by running something | A throwaway prototype in the scratch dir, not a debate. Several variants, driven and captured (screenshots, timings) so the choice rests on evidence |
+| Shared code other code will use (package, API, CLI, chart values) | Write the README or usage example first, from the caller's side. It becomes the target you check the implementation against |
+| Expensive to reverse (data model, wire format, cache keys, infra topology) | Competing sketches from separate subagents (`model-router:architect`), then pick a base and take the best ideas from the rest. Show the user before building |
+| Spans several PRs | A written plan, after the design settles: one section per PR, each ending in its own proof that it works (passing tests alone don't count) |
+
+- **Plans come last.** Settle open questions with prototypes, then write the
+  plan. Don't send a plan with no code behind it to adversarial review; it
+  invents risks that won't happen. Review the diff instead.
+- **The design isn't sacred.** If the implementation keeps needing the same
+  workaround in unrelated places, or only compiles with `any` or forced casts,
+  the design is wrong. Scrap it and redesign instead of patching around it.
+- **Migrations:** state the bar up front, e.g. "output matches the old
+  version exactly, bugs included", so the migration doesn't quietly fix
+  things and make old and new impossible to compare.
+- **Review gate:** if the user says "let me review first", stop after the
+  design or plan, show it, and wait.
+
+Then put the step list on the task list, each step ending in a check. Note
+which steps are independent; parallel ones can go to subagents.
 
 ### 3. Build: change → check → fix
 For each step:
@@ -141,6 +192,8 @@ Edit this section as habits change; it is the part meant to grow.
 
 | Need | Skill |
 |---|---|
+| Reading a big subsystem, gathering evidence | `model-router:scout` subagents (model-router plugin; otherwise plain subagents) |
+| Competing design sketches, hard calls | `model-router:architect` subagents (model-router plugin; otherwise plain subagents) |
 | Driving the app to verify | the repo's `verify-*` skill, or `run` |
 | No way to verify in this repo yet | `create-verification-skill` |
 | Reviewing your own diff | `pr-walkthrough` |
@@ -159,3 +212,8 @@ Edit this section as habits change; it is the part meant to grow.
 | "While I'm here, I'll clean this up" | Separate PR; propose it, don't fold it in |
 | "I'll describe how to verify it in the PR" | Verify it, then show the proof |
 | "This setup step is a one-off" | If you did it twice, make it a script |
+| "The first design looks fine" | Sketch at least one alternative, or prototype the open question |
+| "Let me polish the plan a bit more" | Plans without code behind them are guesses. Prototype, then plan |
+| "I'll start editing, I'll understand it as I go" | Explain the flow back first. Fixing the first plausible spot fixes the symptom |
+| "The previous agent says it's done" | Verify inherited claims against the goal before building on them |
+| "This only compiles with a cast, fine" | The design is fighting you. Revisit it |
