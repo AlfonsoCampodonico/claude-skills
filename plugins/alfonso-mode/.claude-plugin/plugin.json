@@ -1,0 +1,11 @@
+{
+  "name": "alfonso-mode",
+  "version": "0.1.0",
+  "description": "Start a prompt with /alfonso-mode and Claude works the way Alfonso does: orient, plan, small steps it verifies itself with proof, self-review, a PR in his style, then CI and review until it is mergeable.",
+  "author": {
+    "name": "Alfonso Campodonico",
+    "url": "https://github.com/AlfonsoCampodonico"
+  },
+  "repository": "https://github.com/AlfonsoCampodonico/claude-skills",
+  "keywords": ["workflow", "agent", "conventions", "verification", "pull-request"]
+}
