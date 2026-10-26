@@ -1,6 +1,6 @@
 ---
 name: pr-walkthrough
-description: Use when the user shares a PR link or number and wants it reviewed, walked through, or explained — "review this PR", "how do these changes fit together", "what should I focus on", "show me the flow", "make a diagram of this PR" — especially for large PRs, when they say not to fix or comment, or ask for something visual.
+description: Use when the user shares a PR link or number, or names a branch, and wants it reviewed, re-reviewed after new pushes, walked through, or explained — "review this PR", "what changed since I last looked", "how do these changes fit together", "what should I focus on", "show me the flow", "draft my review comments" — especially for large PRs, when they say not to fix or comment, or ask for something visual.
 ---
 
 # PR walkthrough
@@ -13,9 +13,9 @@ a big one. It has three parts:
   `file:line` references;
 - **numbered findings**.
 
-The user steers by number: `fix 3`, `explain ②`, `next`.
+The user steers by number: `fix 3`, `explain ②`, `comment 3`, `next`.
 
-Read-only until the user says otherwise: no fixes, no GitHub comments, no
+Read-only until the user says otherwise: no fixes, no posted comments, no
 checkout of the user's working copy.
 
 ## 1. Gather (verify, don't trust the description)
@@ -47,6 +47,44 @@ git show review/pr-<n>:path/to/file                 # surrounding code
 - Run the repo's tests in a throwaway worktree:
   `git worktree add "$TMP/pr<n>" review/pr-<n>`. Use race or vet if the repo
   has them. Remove the worktree and the `review/` ref when done.
+- **Read the conversation so far.** Unresolved review threads, and whether
+  the code at each one changed since:
+  ```bash
+  gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved isOutdated path line comments(first:5){nodes{author{login} body}}}}}}}' -F o=<o> -F r=<r> -F n=<n>
+  ```
+  An unresolved thread whose code didn't change is a finding; one the author
+  answered without a code change gets a line saying so.
+- **Check every claim in the description** against the code. Keep a list:
+  claim → ✓ at `file:line`, or ✗ with what the code actually does.
+- **Run the risk lenses** over the diff. Each hit gets looked at, not listed:
+  - data: migrations, backfills, destructive queries, rows touched;
+  - compatibility: rolling upgrade, in-flight jobs or messages, cached data,
+    public API and config defaults;
+  - security: untrusted input reaching shell, paths, SQL, IAM or RBAC scope,
+    secrets in logs;
+  - failure paths: retries, partial failure, timeouts, idempotency;
+  - blast radius: what ships to every region or tenant at once, sibling repos
+    that must change together;
+  - tests: new branches with no test that reaches them.
+- **Own branch, no PR yet:** the target is `git diff origin/<base>...HEAD`.
+  Skip the card's author line and the threads, and keep the rest.
+
+## 1b. Re-review (`rereview`, or "what changed since I looked")
+
+Find the commit the user last reviewed and review only what moved since:
+
+```bash
+gh pr view <n> --json reviews -q '[.reviews[] | select(.author.login=="<me>")] | last | .commit.oid'
+git fetch -q origin pull/<n>/head:review/pr-<n>
+git range-diff <base>...<lastReviewedSha> <base>...review/pr-<n>   # survives rebases
+git diff <lastReviewedSha> review/pr-<n>                            # when there was no rebase
+```
+
+Output: the card (with `reviewed abc123 → now def456`), a table of your
+earlier findings and threads, each marked **addressed**, **partly**, or
+**not addressed**, with the `file:line` that shows it. Then new findings
+only, numbered on from the previous review. Redraw the tree only if the flow
+changed.
 
 ## 2. Size the PR, then pace the replies
 
@@ -81,12 +119,20 @@ references are clickable:
 Then give 1–2 lines of concrete observable effect, such as a test assertion
 or an output line.
 
-**4. Files changed**, as a table:
+**4. Files changed**, as a table **in reading order**: the files that carry
+the logic first, then their tests, then wiring, and last what can be skimmed
+(generated code, lockfiles, fixtures, renames). The `read` column says how much
+attention each one needs:
 
-| file | ± | role | nodes |
-|---|---|---|---|
-| `internal/metrics/metrics.go` | +267 | registry + text exposition | — |
-| `internal/stacks/shutdown.go` | +10 | start/exit hooks | ② ③ |
+| read | file | ± | role | nodes |
+|---|---|---|---|---|
+| 1 · careful | `internal/stacks/shutdown.go` | +10 | start/exit hooks | ② ③ |
+| 2 · careful | `internal/metrics/metrics.go` | +267 | registry + text exposition | — |
+| skim | `go.sum` | +40 | deps | — |
+
+**4b. Claims check**, only when the description makes claims worth checking:
+one line each, `✓ "counts every exit" — shutdown.go:96` or
+`✗ "covers oneshot" — oneshot never reaches ③`. A ✗ is also a finding.
 
 **5. Findings**, numbered 1…n, grouped under these headings in this order:
 **Worth discussing before merge**, **Correctness nits**, **Docs & process**,
@@ -100,10 +146,14 @@ mechanism → consequence. Drop any finding you can't tie to code you read.
 
 **6. Verification:** what you ran and the result, stated plainly.
 
-**7. Action footer**, always the last line:
+**7. Verdict:** one line, your recommendation and the reason:
+`Request changes: 1 and 4 lose restart counts on shutdown.` or
+`Approve: nits only (5–7), none blocking.` The user decides; this is advice.
+
+**8. Action footer**, always the last line:
 
 ```
-→ fix 1,4 · explain ② · next: §2 controller hooks · image
+→ fix 1,4 · explain ② · comment 1,4 · next: §2 controller hooks · rereview · deep · image
 ```
 
 ## 4. Workflow tree style
@@ -160,7 +210,31 @@ The rules that make it read like that:
 | `explain ②` | Show the code at that marker's `file:line` (about ±15 lines on the PR head), then 2–4 sentences on what it does and why it matters |
 | `fix 1,4` | Leave read-only mode for just those findings. Follow the repo's branch and PR rules (a separate branch or PR, never the author's branch unless asked). Reference the finding numbers in the commit or PR |
 | `next` / `§2` | The next section: its tree, legend and findings, with numbering continued |
+| `comment 1,4` | Draft each finding as a GitHub review comment in the user's voice (below). Show the drafts; post nothing |
+| `post 1,4` | Post the drafted comments as **one pending review** on the PR head, after the user confirms the exact text. Never approve or request changes unless they say so |
+| `rereview` | Section 1b |
+| `deep` | Run the `adversarial-review` skill (if available) on the findings' areas, then fold the surviving findings into the numbering |
 | `image` | Render the current tree as Mermaid → PNG (section 6) |
+
+### Review comments in the user's voice
+
+Same voice as their PR bodies: short, concrete, no filler, no praise padding.
+One comment per finding, anchored to the line it's about:
+
+> `ProcessRestarted` fires before the STOP re-check, so a restart that shutdown cancels is still counted. Move it after the check? Repro: SIGTERM while a service is in backoff.
+
+- Lead with the mechanism, end with a question or a concrete suggestion
+  (a ```suggestion block when the fix is a few lines).
+- Prefix nits with `nit:`, so the author can tell what blocks.
+- No "Great work!", no "I think maybe", no restating the code.
+
+Posting, after confirmation:
+
+```bash
+gh api repos/<o>/<r>/pulls/<n>/reviews -X POST --input "$TMP/review.json"
+# {"commit_id":"<headSha>","comments":[{"path":"…","line":541,"side":"RIGHT","body":"…"}]}
+# no "event" key → the review stays PENDING for the user to submit
+```
 
 ## 6. Image output (on request, or when a tree passes ~40 rows)
 
@@ -196,3 +270,7 @@ npx -y @mermaid-js/mermaid-cli@11.4.2 -i flow.mmd -o flow.png -b white -s 2
 | Effect column or box edge drifting | Generate the padding with a script |
 | Restating the PR description's claims | Check each claim at the call site; a wrong claim is a finding |
 | Leaving the `review/pr-<n>` ref or temp worktree behind | Clean up and confirm `git status` is unchanged |
+| Re-reviewing the whole PR after one push | Section 1b: only what moved since the user's last review |
+| Repeating a point someone already raised in a thread | Read the threads first; cite the thread instead |
+| Posting comments the user hasn't seen | `comment` drafts; `post` only after they confirm the text |
+| Files table in alphabetical order | Reading order, with lockfiles and generated code last |

@@ -11,12 +11,22 @@
     {
       "name": "pr-walkthrough",
       "source": "./plugins/pr-walkthrough",
-      "description": "Read-only PR review: a workflow diagram of how the change moves through the code (ASCII, or a rendered PNG on request) plus ranked points to consider."
+      "description": "Read-only PR review: a workflow diagram of how the change moves through the code, ranked findings, a reading order, re-review since your last pass, and review comments drafted in your voice."
     },
     {
       "name": "disk-cleanup",
       "source": "./plugins/disk-cleanup",
       "description": "Reclaim disk space safely: finished Claude job scratch, merged git worktrees, Rust target/ dirs and cargo caches, old Claude transcripts. Survey first, delete only approved buckets."
+    },
+    {
+      "name": "pr-body",
+      "source": "./plugins/pr-body",
+      "description": "Write or rewrite PR titles and bodies in Alfonso's style: what was wrong, what's fixed, and before/after images or video uploaded to the PR. No emojis, no tests section, no filler, no attribution."
+    },
+    {
+      "name": "alfonso-mode",
+      "source": "./plugins/alfonso-mode",
+      "description": "/alfonso-mode: the loop from ask to mergeable PR, with small steps verified with proof, self-review and clear ask-first rules. Includes create-verification-skill, which builds a per-repo control CLI and feature map so agents can check their own work."
     }
   ]
 }

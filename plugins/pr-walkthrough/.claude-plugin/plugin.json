@@ -1,6 +1,6 @@
 {
   "name": "pr-walkthrough",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Read-only PR review: a workflow diagram of how the change moves through the code (ASCII, or a rendered PNG on request) plus ranked points to consider.",
   "author": {
     "name": "Alfonso Campodonico",
