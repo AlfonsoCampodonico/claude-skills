@@ -1,0 +1,11 @@
+{
+  "name": "pr-body",
+  "version": "0.1.0",
+  "description": "Write or rewrite GitHub PR titles and bodies in Alfonso's style: what was wrong, what's fixed, and before/after images or video uploaded to the PR. No emojis, no filler.",
+  "author": {
+    "name": "Alfonso Campodonico",
+    "url": "https://github.com/AlfonsoCampodonico"
+  },
+  "repository": "https://github.com/AlfonsoCampodonico/claude-skills",
+  "keywords": ["pull-request", "github", "writing"]
+}

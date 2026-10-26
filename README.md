@@ -10,6 +10,8 @@ In Claude Code:
 ```
 /plugin marketplace add AlfonsoCampodonico/claude-skills
 /plugin install pr-walkthrough@alfonso-skills
+/plugin install pr-body@alfonso-skills
+/plugin install alfonso-mode@alfonso-skills
 ```
 
 Update later with `/plugin marketplace update alfonso-skills`.
@@ -50,7 +52,52 @@ the same finding.
 `image` renders the tree as a Mermaid PNG via `npx @mermaid-js/mermaid-cli`,
 which needs only Node. Green nodes mark new code and red marks gaps.
 
+Reviewing again after the author pushes:
+
+```
+/pr-walkthrough 123 rereview
+```
+
+lists your earlier findings and threads as addressed / partly / not, then new
+findings only. `comment 1,4` drafts review comments in your voice; `post 1,4`
+leaves them as a pending review for you to submit. Every review also has a
+reading-order files table, a claims check against the description, and a
+one-line verdict.
+
 Requirements: `gh`, `git`, and Node (`npx`) for images.
+
+### pr-body
+
+Writes or rewrites a PR title and body: what was wrong, what's fixed, and
+before/after screenshots or a short video when the change is visible. Images
+are uploaded to the PR itself through GitHub's editor. No emojis, no tests
+section, no filler, no Claude attribution.
+
+```
+open a PR for this
+/pr-body rewrite the description of #42
+```
+
+### alfonso-mode
+
+Start a prompt with `/alfonso-mode` and Claude runs the whole loop: orient
+on the repo's real CI commands, plan, change in small steps that each pass a
+check, verify the result for real with proof, self-review with
+`pr-walkthrough` (and `adversarial-review` for risky paths), open the PR with
+`pr-body`, then work through CI and review until it's mergeable. It includes
+a thrash guard, an ask-first / just-do-it table, and a Conventions section
+meant to be edited as habits change.
+
+```
+/alfonso-mode fix the flaky ECR prune test and open a PR
+```
+
+`/create-verification-skill` (also in this plugin) gives a repo a way for
+agents to check their own work: a control CLI under `.claude/skills/verify-<app>/`
+(doctor, seed, drive, snapshot, screenshot, record; JSON output, `--dry-run`,
+errors that say what to do) and a feature map of every feature and how to
+reach it. Run it again in maintain mode to keep both in step with the code.
+alfonso-mode calls it when a repo has no way to verify.
 
 ## Adding a skill
 
