@@ -1,0 +1,11 @@
+{
+  "name": "model-router",
+  "version": "0.1.0",
+  "description": "Route work to the cheapest model that can do it: Haiku scouts for lookups and log/YAML reading, Sonnet workers for routine changes, Opus for design, incident root cause and risky infra changes. Policy loads at session start.",
+  "author": {
+    "name": "Alfonso Campodonico",
+    "url": "https://github.com/AlfonsoCampodonico"
+  },
+  "repository": "https://github.com/AlfonsoCampodonico/claude-skills",
+  "keywords": ["model", "routing", "subagents", "haiku", "sonnet", "opus", "cost"]
+}
