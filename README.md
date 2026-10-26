@@ -86,10 +86,13 @@ open a PR for this
 ### alfonso-mode
 
 Start a prompt with `/alfonso-mode` and Claude runs the whole loop: orient
-on the repo's real CI commands, plan, change in small steps that each pass a
-check, verify the result for real with proof, self-review with
-`pr-walkthrough` (and `adversarial-review` for risky paths), open the PR with
-`pr-body`, then work through CI and review until it's mergeable. It includes
+on the repo's real CI commands, understand the code before touching it
+(read-only investigation, how it works and why, explained back with
+evidence), design through prototypes and competing sketches before writing a
+plan, change in small steps that each pass a check, verify the result for
+real with proof, self-review with `pr-walkthrough` (and `adversarial-review`
+for risky paths), open the PR with `pr-body`, then work through CI and review
+until it's mergeable. It includes
 a thrash guard, an ask-first / just-do-it table, and a Conventions section
 meant to be edited as habits change.
 
