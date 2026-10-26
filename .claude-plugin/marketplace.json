@@ -27,6 +27,11 @@
       "name": "alfonso-mode",
       "source": "./plugins/alfonso-mode",
       "description": "/alfonso-mode: the loop from ask to mergeable PR, with small steps verified with proof, self-review and clear ask-first rules. Includes create-verification-skill, which builds a per-repo control CLI and feature map so agents can check their own work."
+    },
+    {
+      "name": "model-router",
+      "source": "./plugins/model-router",
+      "description": "Route work by complexity: Haiku scouts for lookups and log/manifest reading, Sonnet workers for specified changes, Opus for design, incident root cause and risky infra changes. Policy loads at session start; /model-router to dispatch a task explicitly."
     }
   ]
 }
