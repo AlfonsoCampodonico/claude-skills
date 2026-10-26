@@ -12,6 +12,7 @@ In Claude Code:
 /plugin install pr-walkthrough@alfonso-skills
 /plugin install pr-body@alfonso-skills
 /plugin install alfonso-mode@alfonso-skills
+/plugin install model-router@alfonso-skills
 ```
 
 Update later with `/plugin marketplace update alfonso-skills`.
@@ -98,6 +99,31 @@ agents to check their own work: a control CLI under `.claude/skills/verify-<app>
 errors that say what to do) and a feature map of every feature and how to
 reach it. Run it again in maintain mode to keep both in step with the code.
 alfonso-mode calls it when a repo has no way to verify.
+
+### model-router
+
+Makes Claude pick a model by how hard the work is. Three subagents, one per
+tier:
+
+| Agent | Model | For |
+|---|---|---|
+| `scout` | Haiku | read-only lookups: finding files, summarizing logs, `kubectl get/describe`, rendering Helm/Kustomize |
+| `worker` | Sonnet | specified changes: one service or chart, tests, image or version bumps, following an existing pattern |
+| `architect` | Opus | design calls, incident root cause, networking/RBAC/storage/autoscaling, anything prod or hard to undo |
+
+A SessionStart hook loads the routing policy into every session, so the main
+session delegates on its own. Cheaper tiers never mutate a live cluster, and
+an unsure answer escalates one tier instead of retrying. `/model-router <task>`
+splits a task and dispatches it explicitly. Set `MODEL_ROUTER_DISABLE=1` to
+drop the always-on policy but keep the agents.
+
+```
+/model-router pods OOMKill only on the new node pool, find out why and fix it
+```
+
+Claude can't change the main session's model mid-conversation, so routing
+works by delegation. Run the main session on Opus (or `/model opusplan`) to
+get the most out of it.
 
 ## Adding a skill
 
