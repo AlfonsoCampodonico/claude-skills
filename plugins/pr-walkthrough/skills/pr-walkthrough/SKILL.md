@@ -73,7 +73,12 @@ git show review/pr-<n>:path/to/file                 # surrounding code
   - failure paths: retries, partial failure, timeouts, idempotency;
   - blast radius: what ships to every region or tenant at once, sibling repos
     that must change together;
-  - tests: new branches with no test that reaches them.
+  - state: a new status value, boolean flag or nullable phase field; every
+    reader of that field handles it, and no transition is written in two
+    places with different rules;
+  - tests: new branches with no test that reaches them; mock-heavy unit
+    tests where an E2E test of the same path exists; added `sleep`s or
+    slow setup.
 - **Own branch, no PR yet:** the target is `git diff origin/<base>...HEAD`.
   Skip the card's author line and the threads, and keep the rest.
 

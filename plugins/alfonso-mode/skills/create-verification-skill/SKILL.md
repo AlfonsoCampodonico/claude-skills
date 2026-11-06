@@ -58,7 +58,12 @@ Make it agent friendly:
 - errors that say what to do next ("server not running: run `control up`");
 - `--dry-run` on anything with side effects;
 - composable and deep: a few powerful commands rather than many shallow ones;
-- idempotent `up`/`seed`, so reruns are safe.
+- idempotent `up`/`seed`, so reruns are safe;
+- fast: `seed` from factories or a DB snapshot, `wait-settle` polls instead
+  of sleeping, and a full drive of one feature takes seconds. Agents run it
+  on every step only if it's quick;
+- reusable from the repo's E2E suite, so the commands agents drive by hand
+  and the tests CI runs share one harness.
 
 Test the CLI itself: every subcommand runs once against the real app before
 you call it done.

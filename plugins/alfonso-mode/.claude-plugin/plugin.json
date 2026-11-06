@@ -1,7 +1,7 @@
 {
   "name": "alfonso-mode",
-  "version": "0.2.0",
-  "description": "Start a prompt with /alfonso-mode and Claude works the way Alfonso does: orient, understand the code before editing, design through prototypes before planning, small steps it verifies itself with proof, self-review, a PR in his style, then CI and review until it is mergeable.",
+  "version": "0.3.0",
+  "description": "Start a prompt with /alfonso-mode and Claude works the way Alfonso does: orient, understand the code before editing, design through prototypes before planning, map the state machines it touches, small steps it verifies itself with proof, clean-code self-review, fast E2E-first tests, a PR in his style, then CI and review until it is mergeable.",
   "author": {
     "name": "Alfonso Campodonico",
     "url": "https://github.com/AlfonsoCampodonico"
