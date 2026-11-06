@@ -112,21 +112,49 @@ current state its own way, and bugs hide in the combinations nobody listed.
 - `// should never happen` branches, and guards like `if (x && !y && z)`.
 
 **What to do with it:**
-1. Map it from the code, not memory: every state, every transition, who
+1. **Map it from the code, not memory:** every state, every transition, who
    triggers each (user action, job, webhook, timer), and where it's written.
-   `grep` every write to the field. Put the map (a Mermaid `stateDiagram` or a
-   table) in your explanation and, for a non-trivial one, in the PR.
-2. Mark what the map shows: states that can't be left (stuck), transitions
-   written in two places with different rules, combinations the code allows
-   but nothing handles.
-3. When your change adds a state or a transition, add it to the map first,
-   then check every reader of the field handles it.
-4. When cleaning up is in scope: one enum for the states, one place that
+   `grep` every write to the field.
+2. **Write the rules** the person who owns the behaviour would agree to, in
+   their words: "a paid order is never charged again", "a deleted
+   environment has no running instances". If the code has no field that
+   lets you check a rule, that's a finding. Never soften a rule so the
+   current code passes it.
+3. **Name the end states.** A state with no way out is either a correct end
+   (`paid`, `failed`, `deleted`) or a stuck bug. Say which, for each.
+4. **Draw it** as a Mermaid `stateDiagram-v2`, labelled for the reader:
+   states as what they see or care about ("Provisioning", "Lease held,
+   write pending"), arrows as what happens ("the user cancels", "the health
+   check fails [after 3 tries]"). No variable names, function names or enum
+   constants in labels. Keep it to about 20 arrows: merge states that act the
+   same and drop arrows that repeat others, but never merge two states that
+   break different rules, and keep every state on a bug path. Render it with
+   pele when it's too big to read as text.
+5. **Show each bug as a path:** the shortest sequence of steps from a start
+   state to the state that breaks a rule (stuck state, illegal combination,
+   transition written in two places with different rules). Mark that state
+   on the chart.
+6. **Replay each path against the real code**, one test step per arrow,
+   usually as an E2E test. If the bug doesn't reproduce, assume the map is
+   wrong until you show it isn't. The reproduced path becomes the failing
+   test for the fix.
+7. **When your change adds a state or a transition**, add it to the map
+   first, then check every reader of the field handles it.
+8. **When cleaning up is in scope:** one enum for the states, one place that
    performs transitions and rejects illegal ones, data that only exists in
    the states that need it (a discriminated union, not optional fields).
    Readers ask the machine; they don't re-derive state from flags.
-5. When it's out of scope: write the map down anyway (comment at the field,
-   or the PR) and propose the cleanup separately.
+9. **When it's out of scope:** write the map down anyway (comment at the
+   field, or the PR) and propose the cleanup separately.
+
+For a machine with concurrency (two workers, a webhook racing a job, retries
+across a queue) where drawing it by hand isn't enough, model-check it: write a small
+TLA+ spec in the scratch dir with each rule as an invariant, run TLC, and
+take its counterexamples as the bug paths.
+
+**Hand-off** (in the explanation or the PR): the chart, one line per bug
+(the rule, in the reader's words, and the path), and what the map leaves
+out.
 
 The transition table is the best unit test target in the codebase: pure,
 many cases, cheap to run.
@@ -295,6 +323,8 @@ Edit this section as habits change; it is the part meant to grow.
 | "The previous agent says it's done" | Verify inherited claims against the goal before building on them |
 | "This only compiles with a cast, fine" | The design is fighting you. Revisit it |
 | "I'll add another boolean for this case" | That's a new state. Find the state machine and add it there |
+| "The rule almost holds, I'll loosen it a bit" | The rule is the spec. The code is what's wrong |
+| "The map says it's broken, ship the fix" | Replay the path against the real code first. It may be the map |
 | "I'll handle it if status is null too, just in case" | Can it be null? Check the writes. If not, don't branch on it |
 | "I'll add unit tests with mocks for coverage" | Is there an E2E test of this path? Extend that instead |
 | "The suite is slow, I'll run it at the end" | Then it won't catch anything. Make the narrow check fast |
