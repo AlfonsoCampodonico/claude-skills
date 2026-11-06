@@ -39,6 +39,19 @@ compaction, reload it before continuing.
    be answered by running something (a layout, a timing, an approach),
    prototype it instead of debating it. The written plan comes last, after
    the design has been tested.
+8. **Leave the code cleaner than you found it, inside the task.** The diff
+   is read far more often than it's written. Clear names, one way to do each
+   thing, no dead code, no speculative options, no defensive checks for
+   states that can't happen. Prefer deleting to adding. The best change is
+   often the smaller one.
+9. **Make state explicit.** Most hard bugs live in an implicit state machine:
+   a status column, a cluster of booleans, nullable fields whose combination
+   means "in progress". Find it, name its states and transitions, and make
+   illegal states impossible to represent (see "State machines" below).
+10. **Prove behaviour end to end, fast.** An E2E test through the real entry
+    point beats a pile of mocked unit tests. Unit tests earn their place on
+    pure logic with many cases. Every test must be fast enough that you run
+    it on each step (see "Tests" below).
 
 ## The loop
 
@@ -78,6 +91,88 @@ spot. Before changing anything:
 - **Picking up someone else's branch:** treat their trail (commits, PR body,
   decision log) as the starting point. Work out what's done and verify their
   claims against the goal instead of redoing finished work.
+- **Look for the state machine** in the area you're touching (next section)
+  before deciding where the change goes.
+
+### State machines
+Code that moves something through a lifecycle (a deployment, a job, an
+order, a provisioning request, a UI fetch) is a state machine whether or not
+anyone wrote it as one. When it's implicit, every caller re-derives the
+current state its own way, and bugs hide in the combinations nobody listed.
+
+**Signals of an implicit one:**
+- a `status`/`state`/`phase` string or enum column, matched with `if`/`switch`
+  in more than one file;
+- clusters of booleans (`isLoading`, `isError`, `hasFetched`, `is_ready`,
+  `is_provisioning`) where only some combinations make sense;
+- nullable timestamps standing in for phases (`started_at`, `finished_at`,
+  `failed_at`, `cancelled_at`);
+- retry counters, `attempts`, "pending" queues, reconcile loops, webhooks
+  that set a field and hope;
+- `// should never happen` branches, and guards like `if (x && !y && z)`.
+
+**What to do with it:**
+1. **Map it from the code, not memory:** every state, every transition, who
+   triggers each (user action, job, webhook, timer), and where it's written.
+   `grep` every write to the field.
+2. **Write the rules** the person who owns the behaviour would agree to, in
+   their words: "a paid order is never charged again", "a deleted
+   environment has no running instances". If the code has no field that
+   lets you check a rule, that's a finding. Never soften a rule so the
+   current code passes it.
+3. **Name the end states.** A state with no way out is either a correct end
+   (`paid`, `failed`, `deleted`) or a stuck bug. Say which, for each.
+4. **Draw it** as a Mermaid `stateDiagram-v2`, labelled for the reader:
+   states as what they see or care about ("Provisioning", "Lease held,
+   write pending"), arrows as what happens ("the user cancels", "the health
+   check fails [after 3 tries]"). No variable names, function names or enum
+   constants in labels. Keep it to about 20 arrows: merge states that act the
+   same and drop arrows that repeat others, but never merge two states that
+   break different rules, and keep every state on a bug path.
+   **Render every chart with pele**, the same way every time:
+   ```bash
+   node <skill dir>/scripts/render-diagram.mjs "$TMP/states.mmd" "$TMP/states"
+   # → states.svg (states link to the code) and states.png
+   ```
+   - Give each state a `click` line to the code that writes it, pinned to a
+     SHA: `click Deleting href "https://github.com/<o>/<r>/blob/<sha>/app/Jobs/DeleteEnvironment.php#L42"`.
+   - Mark states on a bug path: `classDef breaks fill:#ffd9d9,stroke:#c62828`
+     and `class Deleting breaks`. States your change adds:
+     `classDef new fill:#d4f5d4,stroke:#2e7d32`.
+   - Read the PNG before delivering it. Send it with `SendUserFile`
+     (`display: "render"`) when available, otherwise link the file under the
+     Mermaid text. On the PR, upload the PNG through the editor (`pr-body`)
+     and keep the Mermaid source in a collapsed `<details>`.
+   - If the render fails, say so in one line; the Mermaid text still carries
+     the chart.
+5. **Show each bug as a path:** the shortest sequence of steps from a start
+   state to the state that breaks a rule (stuck state, illegal combination,
+   transition written in two places with different rules). Mark that state
+   on the chart.
+6. **Replay each path against the real code**, one test step per arrow,
+   usually as an E2E test. If the bug doesn't reproduce, assume the map is
+   wrong until you show it isn't. The reproduced path becomes the failing
+   test for the fix.
+7. **When your change adds a state or a transition**, add it to the map
+   first, then check every reader of the field handles it.
+8. **When cleaning up is in scope:** one enum for the states, one place that
+   performs transitions and rejects illegal ones, data that only exists in
+   the states that need it (a discriminated union, not optional fields).
+   Readers ask the machine; they don't re-derive state from flags.
+9. **When it's out of scope:** write the map down anyway (comment at the
+   field, or the PR) and propose the cleanup separately.
+
+For a machine with concurrency (two workers, a webhook racing a job, retries
+across a queue) where drawing it by hand isn't enough, model-check it: write a small
+TLA+ spec in the scratch dir with each rule as an invariant, run TLC, and
+take its counterexamples as the bug paths.
+
+**Hand-off** (in the explanation or the PR): the chart, one line per bug
+(the rule, in the reader's words, and the path), and what the map leaves
+out.
+
+The transition table is the best unit test target in the codebase: pure,
+many cases, cheap to run.
 
 ### 2. Design, then plan
 Match the design effort to the change. Most changes need none:
@@ -109,9 +204,26 @@ which steps are independent; parallel ones can go to subagents.
 ### 3. Build: change → check → fix
 For each step:
 - Make the smallest change that moves toward done.
-- Run the narrowest check that proves it (one test file, one command, one
-  screen).
+- Run the narrowest check that proves it (the one E2E spec for that flow,
+  one command, one screen).
 - Green → next step. Red → read the error, fix the cause, rerun.
+
+### Tests
+- **E2E first.** The test that matters drives the real entry point (HTTP
+  route, CLI command, browser flow, queue job) against real-enough
+  dependencies and asserts what a user would see. If an E2E test covers the
+  behaviour, a unit test of the same path adds maintenance, not confidence.
+- **Unit tests for pure logic only:** state transition tables, parsers,
+  money and date math, anything with many input combinations. No unit test
+  that mocks most of what it calls; it tests the mocks.
+- **Fast or it doesn't get run.** A single E2E spec should run in seconds,
+  the narrowest check in under ~10s. Seed through factories or a snapshot,
+  not through the UI; run in parallel; wait on conditions, never `sleep`;
+  stub only the external services you don't own. A slow or flaky test you
+  touch gets fixed or reported, not tolerated.
+- **Bug fix = a failing test first**, at the highest level that reproduces
+  it cheaply. Usually that's E2E.
+- Don't delete existing tests to fit this; propose it separately.
 
 **Thrash guard:** the same check failing three times, or a fix that undoes an
 earlier one, means stop guessing. Switch to systematic debugging (reproduce,
@@ -138,6 +250,13 @@ Review your own diff as if someone else wrote it:
   at once), also run `adversarial-review`.
 - Remove debug code, stray files, and commented-out code. The diff contains
   only the task.
+- Clean-code pass on every hunk: could this be shorter or deleted? Does each
+  name say what it is? Is there a second way of doing something the codebase
+  already does one way? Any branch for a state that can't occur, any option
+  nobody passes, any helper used once that reads better inlined? Run
+  `simplify` on the diff when it's more than a few files.
+- Did the change add a state, flag or nullable field? Check it against the
+  state machine map.
 
 ### 6. Ship
 - Commit in the repo's style (conventional `type(scope): subject` where the
@@ -197,6 +316,7 @@ Edit this section as habits change; it is the part meant to grow.
 | Driving the app to verify | the repo's `verify-*` skill, or `run` |
 | No way to verify in this repo yet | `create-verification-skill` |
 | Reviewing your own diff | `pr-walkthrough` |
+| Trimming the diff | `simplify` |
 | High-stakes changes | `adversarial-review` |
 | Writing the PR | `pr-body` |
 | A failing check you don't understand | `systematic-debugging` |
@@ -217,3 +337,10 @@ Edit this section as habits change; it is the part meant to grow.
 | "I'll start editing, I'll understand it as I go" | Explain the flow back first. Fixing the first plausible spot fixes the symptom |
 | "The previous agent says it's done" | Verify inherited claims against the goal before building on them |
 | "This only compiles with a cast, fine" | The design is fighting you. Revisit it |
+| "I'll add another boolean for this case" | That's a new state. Find the state machine and add it there |
+| "The rule almost holds, I'll loosen it a bit" | The rule is the spec. The code is what's wrong |
+| "The map says it's broken, ship the fix" | Replay the path against the real code first. It may be the map |
+| "I'll handle it if status is null too, just in case" | Can it be null? Check the writes. If not, don't branch on it |
+| "I'll add unit tests with mocks for coverage" | Is there an E2E test of this path? Extend that instead |
+| "The suite is slow, I'll run it at the end" | Then it won't catch anything. Make the narrow check fast |
+| "I might need this option later" | Then add it later |
