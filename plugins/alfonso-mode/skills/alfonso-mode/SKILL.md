@@ -128,8 +128,23 @@ current state its own way, and bugs hide in the combinations nobody listed.
    check fails [after 3 tries]"). No variable names, function names or enum
    constants in labels. Keep it to about 20 arrows: merge states that act the
    same and drop arrows that repeat others, but never merge two states that
-   break different rules, and keep every state on a bug path. Render it with
-   pele when it's too big to read as text.
+   break different rules, and keep every state on a bug path.
+   **Render every chart with pele**, the same way every time:
+   ```bash
+   node <skill dir>/scripts/render-diagram.mjs "$TMP/states.mmd" "$TMP/states"
+   # → states.svg (states link to the code) and states.png
+   ```
+   - Give each state a `click` line to the code that writes it, pinned to a
+     SHA: `click Deleting href "https://github.com/<o>/<r>/blob/<sha>/app/Jobs/DeleteEnvironment.php#L42"`.
+   - Mark states on a bug path: `classDef breaks fill:#ffd9d9,stroke:#c62828`
+     and `class Deleting breaks`. States your change adds:
+     `classDef new fill:#d4f5d4,stroke:#2e7d32`.
+   - Read the PNG before delivering it. Send it with `SendUserFile`
+     (`display: "render"`) when available, otherwise link the file under the
+     Mermaid text. On the PR, upload the PNG through the editor (`pr-body`)
+     and keep the Mermaid source in a collapsed `<details>`.
+   - If the render fails, say so in one line; the Mermaid text still carries
+     the chart.
 5. **Show each bug as a path:** the shortest sequence of steps from a start
    state to the state that breaks a rule (stuck state, illegal combination,
    transition written in two places with different rules). Mark that state
