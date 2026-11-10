@@ -55,6 +55,7 @@ plain words. No trailing period.
 <images or video, only if the change is visible>
 ```
 
+- Write the sentences in his voice: use the `voice` skill when it's installed.
 - Drop any section with nothing real in it. A one-line fix can be two
   sentences and no headings.
 - Short declarative sentences, present tense: "Drops", "Adds", "now returns".

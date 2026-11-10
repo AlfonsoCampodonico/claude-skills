@@ -1,0 +1,11 @@
+{
+  "name": "voice",
+  "version": "0.1.0",
+  "description": "Write in Alfonso's voice: blog posts, recipes, Notion docs, PR bodies, comments. Plain words, the point first, real numbers, honest about what's measured, no filler and no invented stories.",
+  "author": {
+    "name": "Alfonso Campodonico",
+    "url": "https://github.com/AlfonsoCampodonico"
+  },
+  "repository": "https://github.com/AlfonsoCampodonico/claude-skills",
+  "keywords": ["writing", "voice", "style", "blog", "notion", "recipes"]
+}

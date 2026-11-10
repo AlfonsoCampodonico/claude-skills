@@ -239,7 +239,8 @@ The rules that make it read like that:
 
 ### Review comments in the user's voice
 
-Same voice as their PR bodies: short, concrete, no filler, no praise padding.
+Same voice as their PR bodies (the `voice` skill, when installed): short,
+concrete, no filler, no praise padding.
 One comment per finding, anchored to the line it's about:
 
 > `ProcessRestarted` fires before the STOP re-check, so a restart that shutdown cancels is still counted. Move it after the check? Repro: SIGTERM while a service is in backoff.

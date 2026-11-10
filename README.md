@@ -13,6 +13,7 @@ In Claude Code:
 /plugin install pr-body@alfonso-skills
 /plugin install alfonso-mode@alfonso-skills
 /plugin install model-router@alfonso-skills
+/plugin install voice@alfonso-skills
 ```
 
 Update later with `/plugin marketplace update alfonso-skills`.
@@ -81,6 +82,22 @@ section, no filler, no Claude attribution.
 ```
 open a PR for this
 /pr-body rewrite the description of #42
+```
+
+### voice
+
+Writes in Alfonso's voice: blog posts, recipes, Notion docs, PR bodies, review
+and closing comments, Slack replies. The rules come from his own posts, recipes
+and docs: the point first, plain words, real numbers, status words that say
+what was measured and what wasn't, and no invented anecdotes (it leaves an
+`[ANECDOTE: …]` gap for him instead). One core skill, plus a file per format
+and a set of samples of his writing. `pr-body` and `pr-walkthrough` use it when
+it's installed.
+
+```
+write a post on why I moved off GitHub-hosted runners
+turn these notes into a Notion one-pager
+/voice rewrite this so it sounds like me
 ```
 
 ### alfonso-mode
