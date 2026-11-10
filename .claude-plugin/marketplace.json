@@ -32,6 +32,11 @@
       "name": "model-router",
       "source": "./plugins/model-router",
       "description": "Route work by complexity: Haiku scouts for lookups and log/manifest reading, Sonnet workers for specified changes, Opus for design, incident root cause and risky infra changes. Policy loads at session start; /model-router to dispatch a task explicitly."
+    },
+    {
+      "name": "voice",
+      "source": "./plugins/voice",
+      "description": "Write in Alfonso's voice across blog posts, recipes, Notion docs, PR bodies and comments: the point first, plain words, real numbers, exact about what's measured, no filler and no invented stories."
     }
   ]
 }
