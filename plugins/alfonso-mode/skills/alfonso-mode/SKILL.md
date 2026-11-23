@@ -97,104 +97,20 @@ spot. Before changing anything:
 ### State machines
 Code that moves something through a lifecycle (a deployment, a job, an
 order, a provisioning request, a UI fetch) is a state machine whether or not
-anyone wrote it as one. When it's implicit, every caller re-derives the
-current state its own way, and bugs hide in the combinations nobody listed.
+anyone wrote it as one. Signals: a `status`/`state` column matched in more
+than one file, clusters of booleans, nullable timestamps standing in for
+phases, retry counters and reconcile loops, `// should never happen`.
 
-**Signals of an implicit one:**
-- a `status`/`state`/`phase` string or enum column, matched with `if`/`switch`
-  in more than one file;
-- clusters of booleans (`isLoading`, `isError`, `hasFetched`, `is_ready`,
-  `is_provisioning`) where only some combinations make sense;
-- nullable timestamps standing in for phases (`started_at`, `finished_at`,
-  `failed_at`, `cancelled_at`);
-- retry counters, `attempts`, "pending" queues, reconcile loops, webhooks
-  that set a field and hope;
-- `// should never happen` branches, and guards like `if (x && !y && z)`.
-
-**What to do with it:**
-1. **Map it from the code, not memory:** every state, every transition, who
-   triggers each (user action, job, webhook, timer), and where it's written.
-   `grep` every write to the field.
-2. **Write the rules** the person who owns the behaviour would agree to, in
-   their words: "a paid order is never charged again", "a deleted
-   environment has no running instances". If the code has no field that
-   lets you check a rule, that's a finding. Never soften a rule so the
-   current code passes it.
-3. **Name the end states.** A state with no way out is either a correct end
-   (`paid`, `failed`, `deleted`) or a stuck bug. Say which, for each.
-4. **Draw it** as a Mermaid `stateDiagram-v2`, labelled for the reader:
-   states as what they see or care about ("Provisioning", "Lease held,
-   write pending"), arrows as what happens ("the user cancels", "the health
-   check fails [after 3 tries]"). No variable names, function names or enum
-   constants in labels. Keep it to about 20 arrows: merge states that act the
-   same and drop arrows that repeat others, but never merge two states that
-   break different rules, and keep every state on a bug path.
-   **Render every chart with pele**, the same way every time:
-   ```bash
-   node <skill dir>/scripts/render-diagram.mjs "$TMP/states.mmd" "$TMP/states"
-   # → states.svg (states link to the code) and states.png
-   ```
-   - Give each state a `click` line to the code that writes it, pinned to a
-     SHA: `click Deleting href "https://github.com/<o>/<r>/blob/<sha>/app/Jobs/DeleteEnvironment.php#L42"`.
-   - Mark states on a bug path: `classDef breaks fill:#ffd9d9,stroke:#c62828`
-     and `class Deleting breaks`. States your change adds:
-     `classDef new fill:#d4f5d4,stroke:#2e7d32`.
-   - Read the PNG before delivering it. Send it with `SendUserFile`
-     (`display: "render"`) when available, otherwise link the file under the
-     Mermaid text. On the PR, upload the PNG through the editor (`pr-body`)
-     and keep the Mermaid source in a collapsed `<details>`.
-   - If the render fails, say so in one line; the Mermaid text still carries
-     the chart.
-5. **Show each bug as a path:** the shortest sequence of steps from a start
-   state to the state that breaks a rule (stuck state, illegal combination,
-   transition written in two places with different rules). Mark that state
-   on the chart.
-6. **Replay each path against the real code**, one test step per arrow,
-   usually as an E2E test. If the bug doesn't reproduce, assume the map is
-   wrong until you show it isn't. The reproduced path becomes the failing
-   test for the fix.
-7. **When your change adds a state or a transition**, add it to the map
-   first, then check every reader of the field handles it.
-8. **When cleaning up is in scope:** one enum for the states, one place that
-   performs transitions and rejects illegal ones, data that only exists in
-   the states that need it (a discriminated union, not optional fields).
-   Readers ask the machine; they don't re-derive state from flags.
-9. **When it's out of scope:** write the map down anyway (comment at the
-   field, or the PR) and propose the cleanup separately.
-
-For a machine with concurrency (two workers, a webhook racing a job, retries
-across a queue) where drawing it by hand isn't enough, model-check it: write a small
-TLA+ spec in the scratch dir with each rule as an invariant, run TLC, and
-take its counterexamples as the bug paths.
-
-**Hand-off** (in the explanation or the PR): the chart, one line per bug
-(the rule, in the reader's words, and the path), and what the map leaves
-out.
-
-The transition table is the best unit test target in the codebase: pure,
-many cases, cheap to run.
+When you find one in the area you're changing, read
+`references/state-machines.md` and follow it: map it from the code, write the
+rules, draw it with pele, show each bug as a path, replay the path as a test.
 
 ### 2. Design, then plan
-Match the design effort to the change. Most changes need none:
-
-| Change | Design work |
-|---|---|
-| Small and contained | None. A step list is enough |
-| Crosses module or service boundaries, moves ownership, adds an API | Sketch 2–3 designs, each starting from how callers use it, then types and boundaries. Pick one with the trade-off that decided it |
-| An open question you could answer by running something | A throwaway prototype in the scratch dir, not a debate. Several variants, driven and captured (screenshots, timings) so the choice rests on evidence |
-| Shared code other code will use (package, API, CLI, chart values) | Write the README or usage example first, from the caller's side. It becomes the target you check the implementation against |
-| Expensive to reverse (data model, wire format, cache keys, infra topology) | Competing sketches from separate subagents (`model-router:architect`), then pick a base and take the best ideas from the rest. Show the user before building |
-| Spans several PRs | A written plan, after the design settles: one section per PR, each ending in its own proof that it works (passing tests alone don't count) |
-
-- **Plans come last.** Settle open questions with prototypes, then write the
-  plan. Don't send a plan with no code behind it to adversarial review; it
-  invents risks that won't happen. Review the diff instead.
-- **The design isn't sacred.** If the implementation keeps needing the same
-  workaround in unrelated places, or only compiles with `any` or forced casts,
-  the design is wrong. Scrap it and redesign instead of patching around it.
-- **Migrations:** state the bar up front, e.g. "output matches the old
-  version exactly, bugs included", so the migration doesn't quietly fix
-  things and make old and new impossible to compare.
+Most changes need no design: a step list is enough. When the change crosses
+module or service boundaries, adds an API or shared code, is expensive to
+reverse, has an open question you could settle by running something, or
+spans several PRs, read `references/design.md` and match the design work to
+it. Plans come last, after prototypes settle the open questions.
 - **Review gate:** if the user says "let me review first", stop after the
   design or plan, show it, and wait.
 
@@ -291,6 +207,26 @@ not verified. Plain statements; no "should".
 | Pick a default when the choice is reversible | Anything that sends a message (Slack, email, Linear) |
 | | Widen scope beyond the ask (a refactor you noticed): propose it separately |
 
+## Subagents
+
+A subagent never sees this skill: it loads only in the session that ran
+`/alfonso-mode`. So the first line of every subagent brief, whatever the
+agent type (`model-router:scout`, `worker`, `architect`, or a plain one), is:
+
+```
+Read <skill dir>/worker.md before anything else.
+```
+
+with `<skill dir>` the absolute base directory this skill loaded from.
+`worker.md` carries the rules that must hold in every agent: prove claims,
+smallest change, no questions, the stop list, no attribution. Keep the rest
+of the brief to the goal, the files, and what done looks like.
+
+You own what a subagent hands back. Read its diff and check its claims before
+building on them. Give a retry or a fix round to a fresh agent with the
+original brief plus the previous report, unless the work lives in the old
+agent's checkout or a process it still runs.
+
 ## Conventions
 
 Edit this section as habits change; it is the part meant to grow.
@@ -321,26 +257,19 @@ Edit this section as habits change; it is the part meant to grow.
 | Writing the PR | `pr-body` |
 | A failing check you don't understand | `systematic-debugging` |
 | Review feedback | `receiving-code-review` |
+| You corrected the agent and it should stick | `reflect`, at the end of the session |
 
 ## Red flags
+
+The thoughts that most often skip a step above:
 
 | Thought | Reality |
 |---|---|
 | "Tests pass, so it works" | Tests pass. Now run it for real and capture proof |
 | "I'll let the user check it in the browser" | You have a browser. Check it |
 | "One more quick tweak and rerun" (third time) | Thrash guard: stop and debug systematically |
-| "While I'm here, I'll clean this up" | Separate PR; propose it, don't fold it in |
-| "I'll describe how to verify it in the PR" | Verify it, then show the proof |
-| "This setup step is a one-off" | If you did it twice, make it a script |
-| "The first design looks fine" | Sketch at least one alternative, or prototype the open question |
-| "Let me polish the plan a bit more" | Plans without code behind them are guesses. Prototype, then plan |
 | "I'll start editing, I'll understand it as I go" | Explain the flow back first. Fixing the first plausible spot fixes the symptom |
 | "The previous agent says it's done" | Verify inherited claims against the goal before building on them |
-| "This only compiles with a cast, fine" | The design is fighting you. Revisit it |
 | "I'll add another boolean for this case" | That's a new state. Find the state machine and add it there |
-| "The rule almost holds, I'll loosen it a bit" | The rule is the spec. The code is what's wrong |
-| "The map says it's broken, ship the fix" | Replay the path against the real code first. It may be the map |
 | "I'll handle it if status is null too, just in case" | Can it be null? Check the writes. If not, don't branch on it |
-| "I'll add unit tests with mocks for coverage" | Is there an E2E test of this path? Extend that instead |
-| "The suite is slow, I'll run it at the end" | Then it won't catch anything. Make the narrow check fast |
 | "I might need this option later" | Then add it later |

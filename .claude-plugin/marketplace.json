@@ -26,7 +26,7 @@
     {
       "name": "alfonso-mode",
       "source": "./plugins/alfonso-mode",
-      "description": "/alfonso-mode: the loop from ask to mergeable PR, with small steps verified with proof, self-review and clear ask-first rules. Includes create-verification-skill, which builds a per-repo control CLI and feature map so agents can check their own work."
+      "description": "/alfonso-mode: the loop from ask to mergeable PR, with small steps verified with proof, self-review and clear ask-first rules. Includes create-verification-skill, which builds a per-repo control CLI and feature map so agents can check their own work. Also /reflect, which turns corrections from a session into proposed skill edits."
     },
     {
       "name": "model-router",

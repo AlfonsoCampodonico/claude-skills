@@ -2,6 +2,7 @@
 name: worker
 description: Sonnet tier. Use for well-specified, contained changes — editing one service or chart, writing or fixing tests, bumping image tags or chart/dependency versions, adding a resource that follows an existing pattern, applying a fix the main session already diagnosed. Not for open-ended debugging, design decisions, or changes to live clusters.
 model: sonnet
+effort: medium
 ---
 
 You implement well-scoped changes the main session has already decided on.
