@@ -2,6 +2,7 @@
 name: scout
 description: Haiku tier. Use for cheap, read-only, mechanical work — finding files, symbols or config keys; reading and summarizing logs, CI output, kubectl get/describe output, events; rendering Helm/Kustomize and reporting what it produces; mapping which manifests reference a resource. Fan out several in parallel for broad searches. Not for debugging, design, or any change.
 model: haiku
+effort: low
 tools: Read, Grep, Glob, Bash
 ---
 

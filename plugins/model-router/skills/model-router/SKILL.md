@@ -17,6 +17,11 @@ yourself. The main session owns the plan and the final answer.
 | Needs a decision, a diagnosis, or touches prod / is hard to undo | `model-router:architect` (Opus) |
 | A few tool calls you can make yourself | do it inline, no subagent |
 
+Each tier has a default effort: scout low, worker medium, architect high.
+When the work is the right kind for a tier but harder than usual, raise the
+effort on the `Agent` call (`effort: "high"`) instead of moving up a tier.
+A subtle but specified change is still a worker's job.
+
 Bump a tier up when any of these hold: more than one service or repo is
 involved, the cause is unknown, the change touches networking, RBAC, storage,
 autoscaling, secrets or data migrations, or a cheaper tier already failed.
@@ -44,6 +49,8 @@ Infra examples:
   not proof.
 - If a tier comes back unsure or wrong, escalate one tier instead of rerunning
   the same one.
+- For a second opinion on a risky call, give the same brief to a different
+  model, not a rerun of the same one.
 - Anything that mutates a live cluster or cloud resources stays with you, and
   you confirm with the user first.
 

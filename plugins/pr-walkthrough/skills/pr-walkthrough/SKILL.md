@@ -79,6 +79,16 @@ git show review/pr-<n>:path/to/file                 # surrounding code
   - tests: new branches with no test that reaches them; mock-heavy unit
     tests where an E2E test of the same path exists; added `sleep`s or
     slow setup.
+- **Look where grep stops.** Listing callers is cheap; the breakage is
+  elsewhere. Read the source of a library the change calls, at its pinned
+  version. Follow what a symbol search misses: JSON an API returns, a DB
+  column, a queue message, a wire format another service reads, a feature
+  flag, config defaults.
+- **Find the one fact it's safe because of.** Most changes that look risky
+  are safe because of a single fact ("this only drops cache entries that
+  already expired"). Name it, then prove it: a short script or test in the
+  throwaway worktree that calls the real code and fails loudly if the fact is
+  wrong. If you can't prove it cheaply, say it's unproven.
 - **Own branch, no PR yet:** the target is `git diff origin/<base>...HEAD`.
   Skip the card's author line and the threads, and keep the rest.
 
@@ -159,13 +169,30 @@ A ✗ is also a finding.
 **Worth discussing before merge**, **Correctness nits**, **Docs & process**,
 **Done well**. Each finding has this shape:
 
-> **4. Restarts counted before the STOP check** · [`restartProcess`](https://github.com/o/r/blob/279103b…/internal/controller/controller.go#L541)
+> **4. Restarts counted before the STOP check** · [`restartProcess`](https://github.com/o/r/blob/279103b…/internal/controller/controller.go#L541) · `ran`
 > `ProcessRestarted` runs before the goroutine re-checks STOP, so a restart cancelled by shutdown is counted but never launched.
+> Proof: `go test -run TestRestartDuringStop ./internal/controller` → `restarts=1, want 0`.
 
-The first line is the claim and a link to the code, named after the symbol. The second line is
-mechanism → consequence. Drop any finding you can't tie to code you read.
+The first line is the claim, a link to the code named after the symbol, and
+the **proof level**. The second line is mechanism → consequence. Drop any
+finding you can't tie to code you read.
 
-**6. Verification:** what you ran and the result, stated plainly.
+Proof levels, weakest first. Take each finding as far down as is cheap:
+
+| Level | Means |
+|---|---|
+| `read` | You pointed at the line that does it |
+| `traced` | You walked the failing path step by step and it gets there |
+| `ran` | A test or script against the real code shows the wrong behaviour; add a `Proof:` line with the command and what it printed |
+| `reproduced` | You saw it in the running app; add the `Proof:` line |
+
+Every "Worth discussing before merge" finding aims for `ran`. If it stays at
+`read` or `traced`, it says so, and the verdict weighs it that way.
+
+**6. Verification:** what you ran and the result, stated plainly. Then one
+line for the fact the change is safe because of, with its proof level:
+`Safe because: the metrics hooks only read controller state, never write it · ran (race test, 50 runs clean)`
+or `… · unproven`.
 
 **7. Verdict:** one line, your recommendation and the reason:
 `Request changes: 1 and 4 lose restart counts on shutdown.` or
@@ -317,3 +344,5 @@ The first run installs pinned `pele` and `@resvg/resvg-js` into
 | Repeating a point someone already raised in a thread | Read the threads first; cite the thread instead |
 | Posting comments the user hasn't seen | `comment` drafts; `post` only after they confirm the text |
 | Files table in alphabetical order | Reading order, with lockfiles and generated code last |
+| A blocking finding that's only `read`, presented as certain | Run it, or label the level and let the verdict say it's unproven |
+| A long list of maybes | Find the one fact the change is safe because of and prove or disprove it |

@@ -23,8 +23,14 @@ keep judgment calls in the main session.
 Rules:
 - If the task fits in a handful of tool calls you can make yourself, do it
   inline; delegation has overhead.
+- Each tier has a default effort (scout low, worker medium, architect high).
+  Pick the tier by the kind of work and the effort by how hard it is: a
+  specified but subtle change (tricky concurrency, a careful migration step)
+  is a worker call with effort high, not an architect call. Architect is for
+  decisions and diagnosis.
 - Escalate, don't retry: if a scout or worker comes back unsure or wrong, hand
-  the task up a tier instead of rerunning the same tier.
+  the task up a tier instead of rerunning the same brief unchanged.
+- A second opinion is the same brief on a different model, not a rerun.
 - Never delegate to a cheaper tier anything that mutates a live cluster
   (kubectl apply/delete/scale/rollout, helm upgrade, terraform apply). Those
   stay with the main session or architect and need the user's confirmation.
